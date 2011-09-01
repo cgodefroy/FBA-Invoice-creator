@@ -65,12 +65,12 @@ class App
           $billline2 = data [34]
           $billcity = data[36]
           $billpostalcode = data[38]
-          $order_date = data[6]
+          $order_date = Date.strptime(data[6]) if (data[6])
           $shipping_cost = data[19].to_f
           $devise = data[16]
           $grand_total = 0
           $items = []
-          $items << [ "", "Prix", "Quantité", "Total" ]
+          $items << [ "", "Quantité", "Prix", "Total" ]
           
           @former_invoice_id = @order_id
         else  #Meme commande
@@ -78,8 +78,11 @@ class App
           
         end
         item_total = line_total(data)
-        $grand_total += (data[15].to_f * data[17].to_f)
-        $items << [ data[14], data[15], data[17], item_total ]
+        @quantity = data[15]
+        @item_price = data[17]
+        
+        $grand_total += (@quantity.to_f * @item_price.to_f)
+        $items << [ data[14], @quantity, @item_price, item_total ]
         
       end
       #Print last line of csv 
@@ -88,8 +91,12 @@ class App
     
     def printFinalInvoice
       $grand_total += $shipping_cost
+      @vat = $grand_total*(VAT/(1+VAT))
+      @gross_total = $grand_total-@vat
+      
       $items << [ "Transport", "", "", line_format($shipping_cost, $devise)]
-      $items << ["TVA", "19,6%", "", line_format($grand_total*(VAT/(1+VAT)), $devise)]
+      $items << ["Total HT", "", "", line_format(@gross_total, $devise)]
+      $items << ["TVA", "19,6%", "", line_format(@vat, $devise)]
       $items << ["Total TTC","","",line_format($grand_total, $devise)]
       createPdf
       $invoice_ref += 1
@@ -126,7 +133,7 @@ class App
         font_size 22
         text "Facture: Shop-#{$invoice_ref.to_s}", :position => :left, :vposition => :top
         font_size 12
-        text "#{Date.strptime($order_date)}" if ($order_date)
+        text "#{$order_date.strftime("%d/%m/%Y")}" if ($order_date)
         
         font_size 12
         bounding_box [350, cursor], :width => 180 do
@@ -144,7 +151,7 @@ class App
 
         move_cursor_to 50
         font_size 10
-        text "eCOMPOSITE - SARL au capital de 7 500 euros - Siren 452 183 41 RCS de Paris", :align => :center
+        text "eCOMPOSITE - SARL au capital de 7 500 euros - Siren 452 183 411 RCS de Paris", :align => :center
         move_down 4
         text "128 rue La Boëtie - 75008 Paris", :align => :center
         move_down 4
